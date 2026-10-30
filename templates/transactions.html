@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Transactions{% endblock %}
+{% block meta_desc %}Deposit or withdraw money from any active MyBank account{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+  <div class="page-header">
+    <p class="eyebrow">Account Operations</p>
+    <h1>Deposit / Withdraw</h1>
+    <p>Select an active account and perform a deposit or withdrawal.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="eyebrow">Step 1 — Choose Account</p>
+        <h2 class="card-title">Transaction Details</h2>
+      </div>
+    </div>
+    <form id="actionForm" autocomplete="off">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="number">Account Number *</label>
+          <input id="number" name="number" type="text" placeholder="e.g. AC123456789012" required>
+        </div>
+        <div class="form-group">
+          <label for="action">Action *</label>
+          <select id="action" name="action" required>
+            <option value="">Select action</option>
+            <option value="deposit">Deposit</option>
+            <option value="withdraw">Withdraw</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="amount">Amount (₹) *</label>
+          <input id="amount" name="amount" type="number" min="0" step="0.01" placeholder="Enter amount" required>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="reset" class="btn btn-secondary">
+          <i class="fa-solid fa-xmark"></i> Clear
+        </button>
+        <button type="submit" class="btn btn-primary" id="actionBtn">
+          <i class="fa-solid fa-arrow-right-arrow-left"></i> Submit
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Result / Confirmation -->
+  <div id="actionResult" style="display:none" class="card">
+    <div class="success-banner">
+      <div class="success-icon"><i class="fa-solid fa-check"></i></div>
+      <h3>Transaction Successful</h3>
+      <p class="mono" id="txnId"></p>
+      <p>New Balance: <strong>₹<span id="newBalance"></span></strong></p>
+      <a href="/" class="btn btn-primary"><i class="fa-solid fa-gauge-high"></i> Back to Dashboard</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('actionForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('actionBtn');
+  btnLoading(btn, 'Processing...');
+  try {
+    const data = Object.fromEntries(new FormData(e.target));
+    const result = await apiPost('/api/action', data);
+    // Show result
+    document.getElementById('txnId').textContent = result.transaction.transaction_id;
+    document.getElementById('newBalance').textContent = money(result.transaction.balance_after);
+    document.getElementById('actionResult').style.display = 'block';
+    e.target.reset();
+  } catch (err) {
+    notify(err.message, 'error');
+  } finally {
+    btnReset(btn);
+  }
+});
+</script>
+{% endblock %}

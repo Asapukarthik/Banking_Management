@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Money Transfer{% endblock %}
+{% block meta_desc %}Transfer funds securely between MyBank accounts{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+  <div class="page-header">
+    <p class="eyebrow">Inter‑Account Transfer</p>
+    <h1>Transfer Money</h1>
+    <p>Enter source and destination account numbers and the amount to move.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="eyebrow">Step 1 — Transfer Details</p>
+        <h2 class="card-title">Fill in the form</h2>
+      </div>
+    </div>
+    <form id="transferForm" autocomplete="off">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="from_number">From Account *</label>
+          <input id="from_number" name="from_number" type="text" placeholder="AC123..." required>
+        </div>
+        <div class="form-group">
+          <label for="to_number">To Account *</label>
+          <input id="to_number" name="to_number" type="text" placeholder="AC987..." required>
+        </div>
+        <div class="form-group">
+          <label for="amount">Amount (₹) *</label>
+          <input id="amount" name="amount" type="number" min="0" step="0.01" placeholder="Enter amount" required>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="reset" class="btn btn-secondary">
+          <i class="fa-solid fa-xmark"></i> Clear
+        </button>
+        <button type="submit" class="btn btn-primary" id="transferBtn">
+          <i class="fa-solid fa-money-bill-transfer"></i> Transfer
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div id="transferResult" style="display:none" class="card">
+    <div class="success-banner">
+      <div class="success-icon"><i class="fa-solid fa-check"></i></div>
+      <h3>Transfer Completed</h3>
+      <p class="mono" id="transferId"></p>
+      <p>New balance of source account: <strong>₹<span id="srcBalance"></span></strong></p>
+      <a href="/" class="btn btn-primary"><i class="fa-solid fa-gauge-high"></i> Back to Dashboard</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('transferForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('transferBtn');
+  btnLoading(btn, 'Transferring…');
+  try {
+    const data = Object.fromEntries(new FormData(e.target));
+    const result = await apiPost('/api/transfer', data);
+    document.getElementById('transferId').textContent = result.transfer.transfer_id;
+    document.getElementById('srcBalance').textContent = money(result.transfer.from_balance ?? result.transfer.amount);
+    document.getElementById('transferResult').style.display = 'block';
+    e.target.reset();
+  } catch (err) {
+    notify(err.message, 'error');
+  } finally {
+    btnReset(btn);
+  }
+});
+</script>
+{% endblock %}

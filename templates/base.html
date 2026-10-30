@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{% block meta_desc %}MyBank — Modern Banking Management System{% endblock %}">
+  <title>{% block title %}Dashboard{% endblock %} | MyBank</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon"><i class="fa-solid fa-building-columns"></i></div>
+    <div class="logo-text">MY<span>BANK</span></div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a href="/"        class="nav-link {% if request.path == '/' %}active{% endif %}">
+      <i class="fa-solid fa-gauge-high"></i><span>Dashboard</span>
+    </a>
+    <a href="/accounts" class="nav-link {% if request.path == '/accounts' %}active{% endif %}">
+      <i class="fa-solid fa-table-list"></i><span>All Accounts</span>
+    </a>
+
+    <div class="nav-section-label" style="margin-top:8px">Banking</div>
+    <a href="/create"       class="nav-link {% if request.path == '/create' %}active{% endif %}">
+      <i class="fa-solid fa-user-plus"></i><span>Create Account</span>
+    </a>
+    <a href="/transactions" class="nav-link {% if request.path == '/transactions' %}active{% endif %}">
+      <i class="fa-solid fa-arrow-right-arrow-left"></i><span>Transactions</span>
+    </a>
+    <a href="/transfer"     class="nav-link {% if request.path == '/transfer' %}active{% endif %}">
+      <i class="fa-solid fa-money-bill-transfer"></i><span>Money Transfer</span>
+    </a>
+    <a href="/customer"     class="nav-link {% if request.path == '/customer' %}active{% endif %}">
+      <i class="fa-solid fa-user-shield"></i><span>Customer Portal</span>
+    </a>
+
+    <div class="nav-section-label" style="margin-top:8px">Management</div>
+    <a href="/admin" class="nav-link {% if request.path == '/admin' %}active{% endif %}">
+      <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <span class="demo-badge">Demo Mode</span>
+    <p>Educational demo only.<br>Not for real banking use.</p>
+  </div>
+</aside>
+
+<!-- ── Main Content ────────────────────────────────────────── -->
+<main class="main-content">
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  {% block content %}{% endblock %}
+</main>
+
+<script src="/static/common.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

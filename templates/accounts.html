@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}All Accounts{% endblock %}
+{% block meta_desc %}Browse and manage all bank accounts with pagination{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+  <div class="page-header">
+    <p class="eyebrow">Account Directory</p>
+    <h1>All Accounts</h1>
+    <p>Search, sort, and paginate through every account in the system.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="eyebrow">Search & Filter</p>
+        <h2 class="card-title">Find an Account</h2>
+      </div>
+    </div>
+    <div class="search-wrap">
+      <i class="fa-solid fa-magnifying-glass search-icon"></i>
+      <input type="text" id="searchInput" placeholder="Search by account number, name, or email" autocomplete="off" />
+    </div>
+    <div class="table-wrap" style="margin-top:12px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Account #</th>
+            <th>Customer</th>
+            <th>Type</th>
+            <th>Balance</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="accountsBody">
+          <tr><td colspan="5" class="empty-state"><i class="fa-solid fa-hourglass-half"></i><p>Loading accounts…</p></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination-bar no-print">
+      <div class="pagination-info" id="pageInfo"></div>
+      <div class="pagination-controls">
+        <button class="btn btn-sm btn-secondary" id="prevBtn"><i class="fa-solid fa-chevron-left"></i> Prev</button>
+        <button class="btn btn-sm btn-secondary" id="nextBtn">Next <i class="fa-solid fa-chevron-right"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let accounts = [];
+let currentPage = 1;
+const pageSize = 10;
+
+async function loadAccounts() {
+  const btnPrev = document.getElementById('prevBtn');
+  const btnNext = document.getElementById('nextBtn');
+  btnPrev.disabled = true;
+  btnNext.disabled = true;
+  try {
+    const data = await api('/api/data');
+    accounts = data.accounts;
+    applySearchAndRender();
+  } catch (err) {
+    notify(err.message, 'error');
+  } finally {
+    btnPrev.disabled = false;
+    btnNext.disabled = false;
+  }
+}
+
+function renderPage(page) {
+  const tbody = document.getElementById('accountsBody');
+  const start = (page - 1) * pageSize;
+  const pageItems = accounts.slice(start, start + pageSize);
+  if (!pageItems.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state"><i class="fa-solid fa-inbox"></i><p>No accounts found.</p></td></tr>`;
+  } else {
+    tbody.innerHTML = pageItems.map(acc => `
+      <tr>
+        <td class="mono"><a href="/customer?number=${encodeURIComponent(acc.number)}" class="link">${escapeHtml(acc.number)}</a></td>
+        <td>${escapeHtml(acc.customer?.name || '-')}</td>
+        <td>${escapeHtml(acc.type)}</td>
+        <td>₹${money(acc.balance)}</td>
+        <td><span class="badge ${statusBadgeClass(acc.status)}">${escapeHtml(acc.status)}</span></td>
+      </tr>`).join('');
+  }
+  const total = accounts.length;
+  const totalPages = Math.ceil(total / pageSize);
+  document.getElementById('pageInfo').textContent = `Page ${page} of ${totalPages} (${total} accounts)`;
+  document.getElementById('prevBtn').disabled = page <= 1;
+  document.getElementById('nextBtn').disabled = page >= totalPages;
+  currentPage = page;
+}
+
+function applySearchAndRender() {
+  const query = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (query) {
+    const filtered = accounts.filter(acc =>
+      acc.number.toLowerCase().includes(query) ||
+      (acc.customer?.name || '').toLowerCase().includes(query) ||
+      (acc.customer?.email || '').toLowerCase().includes(query)
+    );
+    accounts = filtered;
+  }
+  renderPage(1);
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => renderPage(currentPage - 1));
+document.getElementById('nextBtn').addEventListener('click', () => renderPage(currentPage + 1));
+document.getElementById('searchInput').addEventListener('input', applySearchAndRender);
+loadAccounts();
+</script>
+{% endblock %}

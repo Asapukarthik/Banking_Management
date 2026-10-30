@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Create Account{% endblock %}
+{% block meta_desc %}Open a new Savings, Current, or Fixed Deposit account at MyBank{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+
+  <div class="page-header">
+    <p class="eyebrow">New Customer</p>
+    <h1>Open a Bank Account</h1>
+    <p>Fill in the customer details below. All fields marked with * are required.</p>
+  </div>
+
+  <!-- Demo Warning -->
+  <div class="alert alert-warning no-print">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <span>Demo only — do not enter real Aadhaar, PAN, or personal data. Use synthetic information.</span>
+  </div>
+
+  <!-- Create Form (Improvements #1 Customer class, #2 PIN, #3 Opening Balance, #4 Fixed Deposit) -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <p class="eyebrow">Step 1 — Customer Information</p>
+        <h2 class="card-title">Personal Details</h2>
+      </div>
+    </div>
+    <form id="createForm" autocomplete="off">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="name">Full Name *</label>
+          <input id="name" name="name" type="text" placeholder="e.g. Arjun Sharma" required>
+        </div>
+        <div class="form-group">
+          <label for="dob">Date of Birth *</label>
+          <input id="dob" name="dob" type="date" required>
+        </div>
+        <div class="form-group">
+          <label for="gender">Gender *</label>
+          <select id="gender" name="gender" required>
+            <option value="">Select gender</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="email">Email Address *</label>
+          <input id="email" name="email" type="email" placeholder="arjun@example.com" required>
+        </div>
+        <div class="form-group">
+          <label for="phone">Phone Number * <small>(10 digits)</small></label>
+          <input id="phone" name="phone" type="text" placeholder="9876543210"
+                 maxlength="10" pattern="[0-9]{10}" inputmode="numeric" required>
+        </div>
+        <div class="form-group">
+          <label for="aadhar">Aadhaar Number <small>(demo — 12 digits)</small></label>
+          <input id="aadhar" name="aadhar" type="text" placeholder="123456789012"
+                 maxlength="12" pattern="[0-9]{12}" inputmode="numeric">
+        </div>
+        <div class="form-group">
+          <label for="pan">PAN Number <small>(demo only)</small></label>
+          <input id="pan" name="pan" type="text" placeholder="ABCDE1234F" maxlength="10"
+                 style="text-transform:uppercase">
+        </div>
+        <div class="form-group full">
+          <label for="address">Residential Address *</label>
+          <textarea id="address" name="address" placeholder="Flat / Street / City / State / PIN" required></textarea>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="card-header" style="margin-bottom:18px">
+        <div>
+          <p class="eyebrow">Step 2 — Account Setup</p>
+          <h2 class="card-title">Account Type, Opening Balance & PIN</h2>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="account_type">Account Type *</label>
+          <select id="account_type" name="account_type" required>
+            <option value="">Select account type</option>
+            <option value="Savings">Savings — Min ₹500 balance</option>
+            <option value="Current">Current — No minimum balance</option>
+            <option value="Fixed Deposit">Fixed Deposit — Locked, no withdrawals</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="initial_deposit">Initial Deposit (₹) *</label>
+          <input id="initial_deposit" name="initial_deposit" type="number"
+                 min="0" step="0.01" placeholder="Min ₹500 for Savings">
+        </div>
+        <div class="form-group">
+          <label for="pin">4-Digit Account PIN *</label>
+          <input id="pin" name="pin" type="password"
+                 placeholder="Choose a 4-digit PIN" maxlength="4"
+                 pattern="[0-9]{4}" inputmode="numeric" required>
+        </div>
+        <div class="form-group">
+          <label for="pin_confirm">Confirm PIN *</label>
+          <input id="pin_confirm" name="pin_confirm" type="password"
+                 placeholder="Re-enter your PIN" maxlength="4"
+                 pattern="[0-9]{4}" inputmode="numeric" required>
+        </div>
+      </div>
+
+      <!-- Contextual type hint -->
+      <div id="typeHint" class="hint" style="display:none;margin-top:0">
+        <i class="fa-solid fa-circle-info"></i>
+        <span id="typeHintText"></span>
+      </div>
+
+      <div class="form-actions">
+        <button type="reset" class="btn btn-secondary" onclick="resetResult()">
+          <i class="fa-solid fa-xmark"></i> Clear
+        </button>
+        <button type="submit" class="btn btn-primary" id="createBtn">
+          <i class="fa-solid fa-user-plus"></i> Create Account
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Success Result (Improvement #1) -->
+  <div id="createResult" style="display:none" class="card">
+    <div class="success-banner">
+      <div class="success-icon"><i class="fa-solid fa-check"></i></div>
+      <h3>Account Created Successfully!</h3>
+      <p>Your new account number is shown below. Save it — you'll need it for all transactions.</p>
+      <div class="account-number-display" id="newAccountNumber"></div>
+      <p style="color:var(--text-dim);font-size:12px;margin-bottom:20px">
+        Keep your 4-digit PIN safe. It is required to access your account details.
+      </p>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <a href="/transactions" class="btn btn-secondary">
+          <i class="fa-solid fa-arrow-right-arrow-left"></i> Make a Deposit
+        </a>
+        <a href="/customer" class="btn btn-primary">
+          <i class="fa-solid fa-user-shield"></i> View Account
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const typeHints = {
+  "Savings":       "Savings accounts require a minimum opening balance of ₹500 and must always maintain ₹500.",
+  "Current":       "Current accounts have no minimum balance requirement. Ideal for businesses and frequent transactions.",
+  "Fixed Deposit": "Fixed Deposit accounts lock your money for the deposit period. No withdrawals are allowed.",
+};
+
+document.getElementById("account_type").addEventListener("change", function () {
+  const hint = document.getElementById("typeHint");
+  const text = document.getElementById("typeHintText");
+  const msg  = typeHints[this.value];
+  if (msg) { text.textContent = msg; hint.style.display = "flex"; }
+  else     { hint.style.display = "none"; }
+});
+
+document.getElementById("createForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = document.getElementById("createBtn");
+  const pin        = document.getElementById("pin").value;
+  const pinConfirm = document.getElementById("pin_confirm").value;
+  if (pin !== pinConfirm) {
+    notify("PINs do not match. Please try again.", "error");
+    return;
+  }
+  btnLoading(btn, "Creating account...");
+  try {
+    const formData = Object.fromEntries(new FormData(e.target));
+    delete formData.pin_confirm; // Do not send confirm field to server
+    const result = await apiPost("/api/create", formData);
+    notify(`Account created! Number: ${result.number}`);
+    e.target.reset();
+    document.getElementById("typeHint").style.display = "none";
+    document.getElementById("newAccountNumber").textContent = result.number;
+    const box = document.getElementById("createResult");
+    box.style.display = "block";
+    box.scrollIntoView({ behavior: "smooth" });
+  } catch (err) {
+    notify(err.message, "error");
+  } finally {
+    btnReset(btn);
+  }
+});
+
+function resetResult() {
+  document.getElementById("createResult").style.display = "none";
+  document.getElementById("typeHint").style.display = "none";
+}
+</script>
+{% endblock %}

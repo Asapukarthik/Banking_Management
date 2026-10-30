@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Customer Portal{% endblock %}
+{% block meta_desc %}View account balance, customer details and recent transactions{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+  <div class="page-header">
+    <p class="eyebrow">Secure Access</p>
+    <h1>Customer Dashboard</h1>
+    <p>Enter your account number and 4‑digit PIN to view details.</p>
+  </div>
+
+  <div class="card">
+    <form id="customerForm" autocomplete="off">
+      <div class="form-grid cols-3">
+        <div class="form-group">
+          <label for="account_number">Account Number *</label>
+          <input id="account_number" name="number" type="text" placeholder="AC123456789012" required>
+        </div>
+        <div class="form-group">
+          <label for="pin">PIN *</label>
+          <input id="pin" name="pin" type="password" placeholder="4‑digit PIN" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" required>
+        </div>
+        <div class="form-group full" style="display:flex;align-items:flex-end;justify-content:flex-end;">
+          <button type="submit" class="btn btn-primary" id="loginBtn">
+            <i class="fa-solid fa-key"></i> Unlock
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Result Section (hidden until fetched) -->
+  <div id="dashboard" style="display:none" class="section">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Account Overview</p>
+          <h2 class="card-title" id="custName">-</h2>
+        </div>
+        <button class="btn btn-secondary btn-sm no-print" id="printBtn">
+          <i class="fa-solid fa-print"></i> Print
+        </button>
+      </div>
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="info-label">Account #</div>
+          <div class="info-val" id="accNumber">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Balance</div>
+          <div class="info-val" id="balance">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Status</div>
+          <div class="info-val"><span class="badge" id="statusBadge"></span></div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Email</div>
+          <div class="info-val" id="email">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Phone</div>
+          <div class="info-val" id="phone">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Address</div>
+          <div class="info-val" id="address">-</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Analytics</p>
+          <h2 class="card-title">Deposits / Withdrawals</h2>
+        </div>
+      </div>
+      <div class="result-grid">
+        <div class="result-item">
+          <div class="r-label">Total Deposits</div>
+          <div class="r-val accent" id="totalDeposits">-</div>
+        </div>
+        <div class="result-item">
+          <div class="r-label">Total Withdrawals</div>
+          <div class="r-val" id="totalWithdrawals">-</div>
+        </div>
+        <div class="result-item">
+          <div class="r-label"># Transactions</div>
+          <div class="r-val" id="txnCount">-</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Recent Activity</p>
+          <h2 class="card-title">Latest Transactions</h2>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>When</th>
+            </tr>
+          </thead>
+          <tbody id="txnBody">
+            <tr><td colspan="4" class="empty-state"><i class="fa-solid fa-hourglass-half"></i><p>Loading…</p></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const loginForm = document.getElementById('customerForm');
+const dashboard  = document.getElementById('dashboard');
+const printBtn   = document.getElementById('printBtn');
+
+loginForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  btnLoading(btn, 'Unlocking…');
+  try {
+    const number = document.getElementById('account_number').value.trim();
+    const pin    = document.getElementById('pin').value.trim();
+    const data   = await api(`/api/customer/${encodeURIComponent(number)}`, {
+      headers: { 'X-Account-Pin': pin }
+    });
+    // Populate UI
+    document.getElementById('custName').textContent = data.account.customer.name;
+    document.getElementById('accNumber').textContent = data.account.number;
+    document.getElementById('balance').textContent = `₹${money(data.account.balance)}`;
+    document.getElementById('statusBadge').textContent = data.account.status;
+    document.getElementById('statusBadge').className = `badge ${statusBadgeClass(data.account.status)}`;
+    document.getElementById('email').textContent = data.account.customer.email;
+    document.getElementById('phone').textContent = data.account.customer.phone;
+    document.getElementById('address').textContent = data.account.customer.address;
+    document.getElementById('totalDeposits').textContent = `₹${money(data.deposit_total)}`;
+    document.getElementById('totalWithdrawals').textContent = `₹${money(data.withdrawal_total)}`;
+    document.getElementById('txnCount').textContent = data.transactions.length;
+    // Transactions table
+    const tbody = document.getElementById('txnBody');
+    if (!data.transactions.length) {
+      tbody.innerHTML = `<tr><td colspan="4" class="empty-state"><i class="fa-solid fa-inbox"></i><p>No recent activity.</p></td></tr>`;
+    } else {
+      tbody.innerHTML = data.transactions.map(t => `
+        <tr>
+          <td class="mono">${escapeHtml(t.transaction_id)}</td>
+          <td><span class="badge ${txnBadgeClass(t.type)}">${escapeHtml(t.type)}</span></td>
+          <td>₹${money(t.amount)}</td>
+          <td title="${escapeHtml(formatDate(t.date_time))}">${escapeHtml(timeAgo(t.date_time))}</td>
+        </tr>`).join('');
+    }
+    dashboard.style.display = 'block';
+    loginForm.style.display = 'none';
+  } catch (err) {
+    notify(err.message, 'error');
+  } finally {
+    btnReset(btn);
+  }
+});
+
+printBtn.addEventListener('click', () => window.print());
+</script>
+{% endblock %}

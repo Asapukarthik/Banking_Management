@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel{% endblock %}
+{% block meta_desc %}Admin interface for managing account status and deletion{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+  <div class="page-header">
+    <p class="eyebrow">Administration</p>
+    <h1>Admin Panel</h1>
+    <p>Change account status (Active / Frozen / Inactive) or permanently delete an account.</p>
+  </div>
+
+  <!-- Admin Key Form -->
+  <div class="card" id="adminKeyCard">
+    <div class="card-header">
+      <div>
+        <p class="eyebrow">Authentication</p>
+        <h2 class="card-title">Enter Admin Key</h2>
+      </div>
+    </div>
+    <div class="alert alert-warning">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span>This panel is for administrators only. Enter the admin key to proceed. Default key for demo: <code>local-demo-admin-key</code></span>
+    </div>
+    <div class="form-grid cols-3">
+      <div class="form-group" style="grid-column: 1 / span 2;">
+        <label for="adminKeyInput">Admin Key *</label>
+        <input id="adminKeyInput" type="password" placeholder="Enter admin key" value="local-demo-admin-key" />
+      </div>
+      <div class="form-group" style="display:flex;align-items:flex-end;">
+        <button class="btn btn-primary" id="adminUnlockBtn" style="width:100%">
+          <i class="fa-solid fa-unlock"></i> Unlock Panel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accounts Management (hidden until unlocked) -->
+  <div id="adminPanel" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Account Management</p>
+          <h2 class="card-title">All Accounts</h2>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="refreshAdminBtn">
+          <i class="fa-solid fa-rotate-right"></i> Refresh
+        </button>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+        <div class="search-wrap" style="flex:1;max-width:360px">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="adminSearch" placeholder="Search by account, name, or email…" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Account #</th>
+              <th>Customer</th>
+              <th>Type</th>
+              <th>Balance</th>
+              <th>Status</th>
+              <th>Change Status</th>
+              <th>Delete</th>
+            </tr>
+          </thead>
+          <tbody id="adminAccounts">
+            <tr><td colspan="7" class="empty-state">
+              <i class="fa-solid fa-hourglass-half"></i>
+              <p>Loading accounts…</p>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination-bar no-print">
+        <div class="pagination-info" id="adminPageInfo"></div>
+        <div class="pagination-controls">
+          <button class="btn btn-sm btn-secondary" id="adminPrevBtn">
+            <i class="fa-solid fa-chevron-left"></i> Prev
+          </button>
+          <button class="btn btn-sm btn-secondary" id="adminNextBtn">
+            Next <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── State ─────────────────────────────────────────────── */
+let ADMIN_KEY       = "";
+let allAccounts     = [];   // Full unfiltered list
+let filteredAccounts= [];   // After search filter
+let adminPage       = 1;
+const PAGE_SIZE     = 10;
+
+/* ── Unlock Button ─────────────────────────────────────── */
+document.getElementById("adminUnlockBtn").addEventListener("click", () => {
+  const key = document.getElementById("adminKeyInput").value.trim();
+  if (!key) { notify("Please enter the admin key", "error"); return; }
+  ADMIN_KEY = key;
+  document.getElementById("adminKeyCard").style.display = "none";
+  document.getElementById("adminPanel").style.display   = "block";
+  loadAdminAccounts();
+});
+
+/* ── Load Accounts ─────────────────────────────────────── */
+async function loadAdminAccounts() {
+  const refreshBtn = document.getElementById("refreshAdminBtn");
+  btnLoading(refreshBtn, "Loading…");
+  try {
+    const data = await api("/api/data");
+    allAccounts      = data.accounts || [];
+    filteredAccounts = [...allAccounts];
+    renderAdminPage(1);
+  } catch (err) {
+    notify(err.message, "error");
+  } finally {
+    btnReset(refreshBtn);
+  }
+}
+
+/* ── Render Page ───────────────────────────────────────── */
+function renderAdminPage(page) {
+  const tbody = document.getElementById("adminAccounts");
+  const start     = (page - 1) * PAGE_SIZE;
+  const pageItems = filteredAccounts.slice(start, start + PAGE_SIZE);
+
+  if (!pageItems.length) {
+    tbody.innerHTML = `<tr><td colspan="7">
+      <div class="empty-state">
+        <i class="fa-solid fa-inbox"></i>
+        <p>No accounts found.</p>
+      </div></td></tr>`;
+  } else {
+    tbody.innerHTML = pageItems.map(acc => `
+      <tr>
+        <td class="mono">
+          <a href="/customer?number=${encodeURIComponent(acc.number)}"
+             style="color:var(--accent)">
+            ${escapeHtml(acc.number)}
+          </a>
+        </td>
+        <td>${escapeHtml(acc.customer?.name || "—")}</td>
+        <td>${escapeHtml(acc.type)}</td>
+        <td style="font-weight:700">₹${money(acc.balance)}</td>
+        <td>
+          <span class="badge ${statusBadgeClass(acc.status)}"
+                id="badge-${escapeHtml(acc.number)}">
+            ${escapeHtml(acc.status)}
+          </span>
+        </td>
+        <td>
+          <select class="status-select"
+                  data-number="${escapeHtml(acc.number)}"
+                  style="background:var(--surface2);border:1px solid var(--border);
+                         color:var(--text);border-radius:6px;padding:5px 8px;
+                         font-size:12px;cursor:pointer">
+            <option value="Active"   ${acc.status === "Active"   ? "selected" : ""}>Active</option>
+            <option value="Frozen"   ${acc.status === "Frozen"   ? "selected" : ""}>Frozen</option>
+            <option value="Inactive" ${acc.status === "Inactive" ? "selected" : ""}>Inactive</option>
+          </select>
+        </td>
+        <td>
+          <button class="btn btn-xs btn-danger delete-btn"
+                  data-number="${escapeHtml(acc.number)}"
+                  title="Delete account">
+            <i class="fa-solid fa-trash" style="pointer-events:none"></i>
+          </button>
+        </td>
+      </tr>`).join("");
+  }
+
+  const total      = filteredAccounts.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  document.getElementById("adminPageInfo").textContent =
+    `Page ${page} of ${totalPages} (${total} account${total !== 1 ? "s" : ""})`;
+  document.getElementById("adminPrevBtn").disabled = page <= 1;
+  document.getElementById("adminNextBtn").disabled = page >= totalPages;
+  adminPage = page;
+}
+
+/* ── Search ────────────────────────────────────────────── */
+document.getElementById("adminSearch").addEventListener("input", function () {
+  const q = this.value.trim().toLowerCase();
+  filteredAccounts = q
+    ? allAccounts.filter(acc =>
+        acc.number.toLowerCase().includes(q) ||
+        (acc.customer?.name  || "").toLowerCase().includes(q) ||
+        (acc.customer?.email || "").toLowerCase().includes(q))
+    : [...allAccounts];
+  renderAdminPage(1);
+});
+
+/* ── Pagination ────────────────────────────────────────── */
+document.getElementById("adminPrevBtn").addEventListener("click", () => renderAdminPage(adminPage - 1));
+document.getElementById("adminNextBtn").addEventListener("click", () => renderAdminPage(adminPage + 1));
+
+/* ── Status Change ─────────────────────────────────────── */
+document.getElementById("adminAccounts").addEventListener("change", async e => {
+  if (!e.target.classList.contains("status-select")) return;
+  const select = e.target;
+  const number = select.dataset.number;
+  const status = select.value;
+  try {
+    await apiPatch(
+      `/api/admin/account/${encodeURIComponent(number)}/status`,
+      { status },
+      { "X-Admin-Key": ADMIN_KEY }
+    );
+    // Update the status badge inline
+    const badge = document.getElementById(`badge-${number}`);
+    if (badge) {
+      badge.textContent  = status;
+      badge.className    = `badge ${statusBadgeClass(status)}`;
+    }
+    // Also update the source data so search/pagination is consistent
+    const rec = allAccounts.find(a => a.number === number);
+    if (rec) rec.status = status;
+    notify(`Status updated to ${status}`);
+  } catch (err) {
+    notify(err.message, "error");
+    // Restore select to original value
+    loadAdminAccounts();
+  }
+});
+
+/* ── Delete Account ────────────────────────────────────── */
+document.getElementById("adminAccounts").addEventListener("click", async e => {
+  // Use closest() so clicking the <i> icon inside the button still works
+  const btn = e.target.closest(".delete-btn");
+  if (!btn) return;
+  const number = btn.dataset.number;
+  if (!number) return;
+  if (!confirm(`Permanently delete account ${number}?\n\nThe account must have a zero balance. This cannot be undone.`)) return;
+  try {
+    await api(`/api/account/${encodeURIComponent(number)}`, {
+      method:  "DELETE",
+      headers: { "X-Admin-Key": ADMIN_KEY }
+    });
+    // Remove from both arrays and re-render
+    allAccounts      = allAccounts.filter(a => a.number !== number);
+    filteredAccounts = filteredAccounts.filter(a => a.number !== number);
+    renderAdminPage(adminPage);
+    notify("Account deleted successfully");
+  } catch (err) {
+    notify(err.message, "error");
+  }
+});
+
+/* ── Refresh Button ────────────────────────────────────── */
+document.getElementById("refreshAdminBtn").addEventListener("click", loadAdminAccounts);
+</script>
+{% endblock %}
